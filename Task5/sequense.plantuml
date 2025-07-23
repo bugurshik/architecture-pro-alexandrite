@@ -1,0 +1,52 @@
+@startuml
+participant "MES API" as Client
+participant "MES Read-Through" as App
+participant "Redis (Кэш)" as Redis
+participant "MES DB" as DB
+
+title Чтение списка заказов и обновление статуса
+
+== Чтение списка заказов (Read-Through) ==
+
+Client -> App: GET /orders?from=2025-07-24T15:00&window=60
+App -> Redis: GET orders:list:createdBy=2025-07-24:15:00:TimeWindow=60
+Redis --> App: [промах] null
+
+App -> App: Запуск Read-Through логики
+App -> DB: SELECT * FROM orders WHERE created_at BETWEEN '15:00' AND '16:00'
+DB --> App: Список заказов (100 шт.)
+
+App -> Redis: SET orders:list:createdBy=2025-07-24:15:00:TimeWindow=60 = [заказы], TTL=300
+Redis --> App: OK
+
+App --> Client: Возвращает список заказов
+
+== Обновление статуса заказа ==
+
+Client -> App: PATCH /orders/123 { status: "shipped" }
+App -> DB: UPDATE orders SET status = 'shipped' WHERE id = 123
+DB --> App: OK
+
+App -> App: Определяет временной диапазон заказа (например, 15:00–16:00)
+App -> Redis: DEL orders:list:createdBy=2025-07-24:15:00:TimeWindow=60
+Redis --> App: OK
+
+App -> Redis: DEL orders:list:new
+Redis --> App: OK
+
+App --> Client: Статус обновлён, кэш инвалидирован
+
+== Повторное чтение (после инвалидации) ==
+
+Client -> App: GET /orders?from=2025-07-24T15:00&window=60
+App -> Redis: GET orders:list:createdBy=2025-07-24:15:00:TimeWindow=60
+Redis --> App: [промах] null
+
+App -> DB: SELECT * FROM orders WHERE ... (с обновлённым статусом)
+DB --> App: Новый список (с shipped-заказом)
+
+App -> Redis: SET ... (новый кэш)
+Redis --> App: OK
+
+App --> Client: Возвращает обновлённый список
+@enduml
