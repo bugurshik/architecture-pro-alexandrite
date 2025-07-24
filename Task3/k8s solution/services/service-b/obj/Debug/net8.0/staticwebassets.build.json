@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "mBz30tvDHRusPT/ukv+NvhwBh23w9R6MwjNKUl7vMdg=",
+  "Source": "service-b",
+  "BasePath": "_content/service-b",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
